@@ -44,7 +44,13 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Không tìm thấy API endpoint' });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
-  console.log(`📦 API available at http://localhost:${PORT}/api`);
-});
+// For local development
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server is running on http://localhost:${PORT}`);
+    console.log(`📦 API available at http://localhost:${PORT}/api`);
+  });
+}
+
+// Export for Vercel Serverless
+export default app;
