@@ -38,7 +38,7 @@ const Footer = () => {
           <div>
             <h3 className="font-bold text-lg mb-4">Liên hệ</h3>
             <ul className="space-y-2 text-gray-400 text-sm">
-              <li>📍 123 Đường ABC, Quận 1, TP.HCM</li>
+              <li>📍 25D Thôn 7, Gia Hiệp, Lâm Đồng</li>
               <li>📞 0975 794 143</li>
               <li>
                 <a href="https://www.facebook.com/profile.php?id=61576239952718" target="_blank" rel="noopener noreferrer" className="hover:text-white flex items-center">
@@ -50,7 +50,7 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400 text-sm">
-          <p>© 2024 Chaa Nôm - Cửa hàng Thái Lan. All rights reserved.</p>
+          <p>© 2026 Chaa Nôm - Cửa hàng Thái Lan. All rights reserved.</p>
         </div>
       </div>
     </footer>
