@@ -30,7 +30,7 @@ app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Tạp Hóa Đơn Giản API is running' });
+  res.json({ status: 'OK', message: 'Chaa Nôm API is running' });
 });
 
 // Error handling middleware

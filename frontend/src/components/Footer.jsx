@@ -7,10 +7,10 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* About */}
           <div>
-            <h3 className="font-bold text-lg mb-4">🛒 Tạp Hóa Đơn Giản</h3>
+            <h3 className="font-bold text-lg mb-4">🇹🇭 Chaa Nôm</h3>
             <p className="text-gray-400 text-sm">
-              Cửa hàng tạp hóa online tiện lợi, giao hàng nhanh chóng, 
-              giá cả phải chăng.
+              Cửa hàng Thái Lan - Sản phẩm nhập khẩu chính hãng,
+              giao hàng nhanh chóng, giá cả phải chăng.
             </p>
           </div>
 
@@ -39,14 +39,14 @@ const Footer = () => {
             <h3 className="font-bold text-lg mb-4">Liên hệ</h3>
             <ul className="space-y-2 text-gray-400 text-sm">
               <li>📍 123 Đường ABC, Quận 1, TP.HCM</li>
-              <li>📞 0123 456 789</li>
-              <li>✉️ contact@taphoadongian.com</li>
+              <li>📞 0975 794 143</li>
+              <li>✉️ contact@chanom.com</li>
             </ul>
           </div>
         </div>
 
         <div className="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400 text-sm">
-          <p>© 2024 Tạp Hóa Đơn Giản. All rights reserved.</p>
+          <p>© 2024 Chaa Nôm - Cửa hàng Thái Lan. All rights reserved.</p>
         </div>
       </div>
     </footer>

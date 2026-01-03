@@ -38,10 +38,10 @@ const Home = () => {
         <div className="container mx-auto px-4">
           <div className="max-w-2xl">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              Chào mừng đến với Tạp Hóa Đơn Giản
+              Chào mừng đến với Chaa Nôm
             </h1>
             <p className="text-xl text-primary-100 mb-8">
-              Mua sắm tiện lợi, giao hàng nhanh chóng, giá cả phải chăng
+              Cửa hàng Thái Lan - Sản phẩm nhập khẩu chính hãng
             </p>
             <Link
               to="/products"
