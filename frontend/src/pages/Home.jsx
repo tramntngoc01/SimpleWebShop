@@ -5,6 +5,10 @@ import api from '../utils/api';
 import ProductCard from '../components/ProductCard';
 import Loading from '../components/Loading';
 
+// Simple cache
+const cache = new Map();
+const CACHE_TTL = 60 * 1000;
+
 const Home = () => {
   const [categories, setCategories] = useState([]);
   const [saleProducts, setSaleProducts] = useState([]);
@@ -12,11 +16,35 @@ const Home = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      // Check cache first
+      const categoriesCached = cache.get('categories');
+      const saleCached = cache.get('saleProducts');
+      const now = Date.now();
+
+      // Use cached data if available
+      if (categoriesCached && saleCached && 
+          now - categoriesCached.timestamp < CACHE_TTL &&
+          now - saleCached.timestamp < CACHE_TTL) {
+        setCategories(categoriesCached.data);
+        setSaleProducts(saleCached.data);
+        setLoading(false);
+        return;
+      }
+
+      // Show stale data immediately while fetching
+      if (categoriesCached) setCategories(categoriesCached.data);
+      if (saleCached) setSaleProducts(saleCached.data);
+      if (categoriesCached || saleCached) setLoading(false);
+
       try {
         const [categoriesRes, saleRes] = await Promise.all([
           api.get('/categories'),
           api.get('/products/featured/sale')
         ]);
+        
+        cache.set('categories', { data: categoriesRes.data, timestamp: now });
+        cache.set('saleProducts', { data: saleRes.data, timestamp: now });
+        
         setCategories(categoriesRes.data);
         setSaleProducts(saleRes.data);
       } catch (error) {

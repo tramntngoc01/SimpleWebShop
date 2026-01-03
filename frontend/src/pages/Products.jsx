@@ -1,9 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, Filter, X } from 'lucide-react';
 import api from '../utils/api';
 import ProductCard from '../components/ProductCard';
 import Loading from '../components/Loading';
+
+// Simple cache for products
+const cache = new Map();
+const CACHE_TTL = 60 * 1000;
 
 const Products = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -12,6 +16,7 @@ const Products = () => {
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({});
   const [showFilters, setShowFilters] = useState(false);
+  const abortControllerRef = useRef(null);
 
   const [filters, setFilters] = useState({
     search: searchParams.get('search') || '',
@@ -23,10 +28,20 @@ const Products = () => {
     page: parseInt(searchParams.get('page')) || 1,
   });
 
+  // Fetch categories with caching
   useEffect(() => {
     const fetchCategories = async () => {
+      const cacheKey = 'categories';
+      const cached = cache.get(cacheKey);
+      
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL * 5) {
+        setCategories(cached.data);
+        return;
+      }
+
       try {
         const response = await api.get('/categories');
+        cache.set(cacheKey, { data: response.data, timestamp: Date.now() });
         setCategories(response.data);
       } catch (error) {
         console.error('Failed to fetch categories:', error);
@@ -35,35 +50,72 @@ const Products = () => {
     fetchCategories();
   }, []);
 
+  // Fetch products with caching and abort controller
   useEffect(() => {
     const fetchProducts = async () => {
-      setLoading(true);
+      // Cancel previous request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+
+      const params = new URLSearchParams();
+      if (filters.search) params.append('search', filters.search);
+      if (filters.category) params.append('category', filters.category);
+      if (filters.minPrice) params.append('minPrice', filters.minPrice);
+      if (filters.maxPrice) params.append('maxPrice', filters.maxPrice);
+      params.append('sortBy', filters.sortBy);
+      params.append('sortOrder', filters.sortOrder);
+      params.append('page', filters.page);
+      params.append('limit', 12);
+
+      const cacheKey = `products:${params.toString()}`;
+      const cached = cache.get(cacheKey);
+
+      // Show cached data immediately
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        setProducts(cached.data.products);
+        setPagination(cached.data.pagination);
+        setLoading(false);
+        setSearchParams(params);
+        return;
+      }
+
+      // Show stale data while fetching
+      if (cached) {
+        setProducts(cached.data.products);
+        setPagination(cached.data.pagination);
+      } else {
+        setLoading(true);
+      }
+
       try {
-        const params = new URLSearchParams();
-        if (filters.search) params.append('search', filters.search);
-        if (filters.category) params.append('category', filters.category);
-        if (filters.minPrice) params.append('minPrice', filters.minPrice);
-        if (filters.maxPrice) params.append('maxPrice', filters.maxPrice);
-        params.append('sortBy', filters.sortBy);
-        params.append('sortOrder', filters.sortOrder);
-        params.append('page', filters.page);
-        params.append('limit', 12);
-
-        const response = await api.get(`/products?${params.toString()}`);
-        setProducts(response.data.products);
-        setPagination(response.data.pagination);
-
-        // Update URL
+        const response = await api.get(`/products?${params.toString()}`, {
+          signal: abortControllerRef.current.signal
+        });
+        
+        const responseData = response.data;
+        cache.set(cacheKey, { data: responseData, timestamp: Date.now() });
+        setProducts(responseData.products);
+        setPagination(responseData.pagination);
         setSearchParams(params);
       } catch (error) {
-        console.error('Failed to fetch products:', error);
+        if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
+          console.error('Failed to fetch products:', error);
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchProducts();
-  }, [filters]);
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [filters, setSearchParams]);
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value, page: 1 }));

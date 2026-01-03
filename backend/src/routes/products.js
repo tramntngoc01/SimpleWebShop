@@ -3,9 +3,43 @@ import { supabase } from '../config/database.js';
 
 const router = express.Router();
 
+// Simple in-memory cache
+const cache = new Map();
+const CACHE_TTL = 60 * 1000; // 60 seconds
+
+const getCacheKey = (req) => {
+  return `products:${req.originalUrl}`;
+};
+
+const setCache = (key, data) => {
+  cache.set(key, {
+    data,
+    timestamp: Date.now()
+  });
+};
+
+const getCache = (key) => {
+  const cached = cache.get(key);
+  if (!cached) return null;
+  if (Date.now() - cached.timestamp > CACHE_TTL) {
+    cache.delete(key);
+    return null;
+  }
+  return cached.data;
+};
+
 // Lấy tất cả sản phẩm (có phân trang và lọc)
 router.get('/', async (req, res) => {
   try {
+    // Check cache first
+    const cacheKey = getCacheKey(req);
+    const cachedData = getCache(cacheKey);
+    if (cachedData) {
+      res.set('X-Cache', 'HIT');
+      res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+      return res.json(cachedData);
+    }
+
     const { 
       page = 1, 
       limit = 12, 
@@ -19,9 +53,10 @@ router.get('/', async (req, res) => {
 
     const offset = (page - 1) * limit;
 
+    // Optimize: Select only needed columns instead of *
     let query = supabase
       .from('products')
-      .select('*, categories(name)', { count: 'exact' })
+      .select('id, name, price, sale_price, image_url, stock_quantity, unit, category_id, categories(name)', { count: 'exact' })
       .eq('is_active', true);
 
     // Lọc theo danh mục
@@ -52,7 +87,7 @@ router.get('/', async (req, res) => {
 
     if (error) throw error;
 
-    res.json({
+    const responseData = {
       products,
       pagination: {
         page: parseInt(page),
@@ -60,7 +95,14 @@ router.get('/', async (req, res) => {
         total: count,
         totalPages: Math.ceil(count / limit)
       }
-    });
+    };
+
+    // Cache the response
+    setCache(cacheKey, responseData);
+    
+    res.set('X-Cache', 'MISS');
+    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+    res.json(responseData);
   } catch (error) {
     console.error('Get products error:', error);
     res.status(500).json({ error: 'Đã xảy ra lỗi khi lấy sản phẩm' });
@@ -70,9 +112,17 @@ router.get('/', async (req, res) => {
 // Lấy sản phẩm theo ID
 router.get('/:id', async (req, res) => {
   try {
+    const cacheKey = `product:${req.params.id}`;
+    const cachedData = getCache(cacheKey);
+    if (cachedData) {
+      res.set('X-Cache', 'HIT');
+      res.set('Cache-Control', 'public, max-age=60');
+      return res.json(cachedData);
+    }
+
     const { data: product, error } = await supabase
       .from('products')
-      .select('*, categories(name)')
+      .select('id, name, description, price, sale_price, image_url, stock_quantity, unit, category_id, categories(name)')
       .eq('id', req.params.id)
       .eq('is_active', true)
       .single();
@@ -81,6 +131,9 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Không tìm thấy sản phẩm' });
     }
 
+    setCache(cacheKey, product);
+    res.set('X-Cache', 'MISS');
+    res.set('Cache-Control', 'public, max-age=60');
     res.json(product);
   } catch (error) {
     console.error('Get product error:', error);
@@ -91,12 +144,20 @@ router.get('/:id', async (req, res) => {
 // Lấy sản phẩm theo danh mục
 router.get('/category/:categoryId', async (req, res) => {
   try {
+    const cacheKey = getCacheKey(req);
+    const cachedData = getCache(cacheKey);
+    if (cachedData) {
+      res.set('X-Cache', 'HIT');
+      res.set('Cache-Control', 'public, max-age=60');
+      return res.json(cachedData);
+    }
+
     const { page = 1, limit = 12 } = req.query;
     const offset = (page - 1) * limit;
 
     const { data: products, error, count } = await supabase
       .from('products')
-      .select('*, categories(name)', { count: 'exact' })
+      .select('id, name, price, sale_price, image_url, stock_quantity, unit, category_id, categories(name)', { count: 'exact' })
       .eq('category_id', req.params.categoryId)
       .eq('is_active', true)
       .order('created_at', { ascending: false })
@@ -104,7 +165,7 @@ router.get('/category/:categoryId', async (req, res) => {
 
     if (error) throw error;
 
-    res.json({
+    const responseData = {
       products,
       pagination: {
         page: parseInt(page),
@@ -112,7 +173,12 @@ router.get('/category/:categoryId', async (req, res) => {
         total: count,
         totalPages: Math.ceil(count / limit)
       }
-    });
+    };
+
+    setCache(cacheKey, responseData);
+    res.set('X-Cache', 'MISS');
+    res.set('Cache-Control', 'public, max-age=60');
+    res.json(responseData);
   } catch (error) {
     console.error('Get products by category error:', error);
     res.status(500).json({ error: 'Đã xảy ra lỗi' });
@@ -122,9 +188,17 @@ router.get('/category/:categoryId', async (req, res) => {
 // Lấy sản phẩm nổi bật (giảm giá)
 router.get('/featured/sale', async (req, res) => {
   try {
+    const cacheKey = 'products:featured:sale';
+    const cachedData = getCache(cacheKey);
+    if (cachedData) {
+      res.set('X-Cache', 'HIT');
+      res.set('Cache-Control', 'public, max-age=60');
+      return res.json(cachedData);
+    }
+
     const { data: products, error } = await supabase
       .from('products')
-      .select('*, categories(name)')
+      .select('id, name, price, sale_price, image_url, stock_quantity, unit, category_id, categories(name)')
       .eq('is_active', true)
       .not('sale_price', 'is', null)
       .order('created_at', { ascending: false })
@@ -132,6 +206,9 @@ router.get('/featured/sale', async (req, res) => {
 
     if (error) throw error;
 
+    setCache(cacheKey, products);
+    res.set('X-Cache', 'MISS');
+    res.set('Cache-Control', 'public, max-age=60');
     res.json(products);
   } catch (error) {
     console.error('Get featured products error:', error);
