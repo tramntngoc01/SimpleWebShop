@@ -40,7 +40,11 @@ const Footer = () => {
             <ul className="space-y-2 text-gray-400 text-sm">
               <li>📍 123 Đường ABC, Quận 1, TP.HCM</li>
               <li>📞 0975 794 143</li>
-              <li>✉️ contact@chanom.com</li>
+              <li>
+                <a href="https://www.facebook.com/profile.php?id=61576239952718" target="_blank" rel="noopener noreferrer" className="hover:text-white flex items-center">
+                  📘 Facebook Chaa Nôm
+                </a>
+              </li>
             </ul>
           </div>
         </div>
