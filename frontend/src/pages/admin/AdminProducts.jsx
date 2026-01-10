@@ -290,18 +290,75 @@ const AdminProducts = () => {
 
           {/* Pagination */}
           {pagination.totalPages > 1 && (
-            <div className="flex justify-center p-4 border-t gap-2">
-              {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => fetchProducts(page)}
-                  className={`px-3 py-1 rounded ${
-                    page === pagination.page ? 'bg-primary-600 text-white' : 'bg-gray-200'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
+            <div className="flex justify-center items-center p-4 border-t gap-1 flex-wrap">
+              {/* Nút Previous */}
+              <button
+                onClick={() => fetchProducts(pagination.page - 1)}
+                disabled={pagination.page === 1}
+                className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ‹
+              </button>
+              
+              {/* Hiển thị tối đa 5 trang */}
+              {(() => {
+                const currentPage = pagination.page;
+                const totalPages = pagination.totalPages;
+                let startPage = Math.max(1, currentPage - 2);
+                let endPage = Math.min(totalPages, startPage + 4);
+                
+                if (endPage - startPage < 4) {
+                  startPage = Math.max(1, endPage - 4);
+                }
+                
+                const pages = [];
+                
+                if (startPage > 1) {
+                  pages.push(
+                    <button key={1} onClick={() => fetchProducts(1)} className="px-3 py-1 rounded bg-gray-200">1</button>
+                  );
+                  if (startPage > 2) {
+                    pages.push(<span key="start-ellipsis" className="px-2">...</span>);
+                  }
+                }
+                
+                for (let i = startPage; i <= endPage; i++) {
+                  pages.push(
+                    <button
+                      key={i}
+                      onClick={() => fetchProducts(i)}
+                      className={`px-3 py-1 rounded ${i === currentPage ? 'bg-primary-600 text-white' : 'bg-gray-200'}`}
+                    >
+                      {i}
+                    </button>
+                  );
+                }
+                
+                if (endPage < totalPages) {
+                  if (endPage < totalPages - 1) {
+                    pages.push(<span key="end-ellipsis" className="px-2">...</span>);
+                  }
+                  pages.push(
+                    <button key={totalPages} onClick={() => fetchProducts(totalPages)} className="px-3 py-1 rounded bg-gray-200">{totalPages}</button>
+                  );
+                }
+                
+                return pages;
+              })()}
+              
+              {/* Nút Next */}
+              <button
+                onClick={() => fetchProducts(pagination.page + 1)}
+                disabled={pagination.page === pagination.totalPages}
+                className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ›
+              </button>
+              
+              {/* Info trang */}
+              <span className="ml-2 text-sm text-gray-500">
+                Trang {pagination.page}/{pagination.totalPages}
+              </span>
             </div>
           )}
         </div>

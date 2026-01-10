@@ -16,9 +16,14 @@ import { formatCurrency } from '../../utils/helpers';
 import Loading from '../../components/Loading';
 
 const AdminLayout = () => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, loading } = useAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Đợi auth context load xong trước khi kiểm tra
+  if (loading) {
+    return <Loading />;
+  }
 
   if (!user || !isAdmin()) {
     return <Navigate to="/login" replace />;
