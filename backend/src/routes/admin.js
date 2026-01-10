@@ -316,47 +316,176 @@ router.post('/products/import', authMiddleware, adminMiddleware, upload.single('
 
     const products = [];
     const errors = [];
+    const newCategories = new Set(); // Danh sách category mới cần tạo
+
+    // Detect format: KiotViet hoặc Template cũ
+    const isKiotVietFormat = data[0] && ('Tên hàng' in data[0] || 'Giá bán' in data[0]);
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       const rowNum = i + 2; // +2 vì header là hàng 1
 
+      let name, description, price, salePrice, categoryName, stockQuantity, unit, imageUrl;
+
+      if (isKiotVietFormat) {
+        // Format từ KiotViet
+        name = row['Tên hàng'];
+        description = row['Mô tả'] || null;
+        price = row['Giá bán'];
+        salePrice = row['Giá vốn'] && row['Giá vốn'] < row['Giá bán'] ? null : null; // Không dùng giá vốn làm giá khuyến mãi
+        categoryName = row['Nhóm hàng(3 Cấp)']?.toLowerCase();
+        stockQuantity = row['Tồn kho'];
+        unit = row['ĐVT'] || 'cái';
+        imageUrl = row['Hình ảnh (url1,url2...)'] || null;
+        
+        // Nếu có nhiều URL ảnh, chỉ lấy cái đầu tiên
+        if (imageUrl && imageUrl.includes(',')) {
+          imageUrl = imageUrl.split(',')[0].trim();
+        }
+      } else {
+        // Format template cũ
+        name = row['Tên sản phẩm'];
+        description = row['Mô tả'] || null;
+        price = row['Giá'];
+        salePrice = row['Giá khuyến mãi'] || null;
+        categoryName = row['Danh mục']?.toLowerCase();
+        stockQuantity = row['Số lượng'];
+        unit = row['Đơn vị'] || 'cái';
+        imageUrl = row['Link ảnh'] || null;
+      }
+
       // Validate required fields
-      if (!row['Tên sản phẩm'] || !row['Giá']) {
+      if (!name || !price) {
         errors.push(`Hàng ${rowNum}: Thiếu tên sản phẩm hoặc giá`);
         continue;
       }
 
-      const categoryName = row['Danh mục']?.toLowerCase();
-      const categoryId = categoryName ? categoryMap[categoryName] : null;
+      // Kiểm tra category - nếu chưa có thì thêm vào danh sách cần tạo
+      let categoryId = categoryName ? categoryMap[categoryName] : null;
+      if (categoryName && !categoryId) {
+        newCategories.add(categoryName);
+      }
 
       products.push({
-        name: row['Tên sản phẩm'],
-        description: row['Mô tả'] || null,
-        price: parseFloat(row['Giá']),
-        sale_price: row['Giá khuyến mãi'] ? parseFloat(row['Giá khuyến mãi']) : null,
-        image_url: row['Link ảnh'] || null,
-        category_id: categoryId,
-        stock_quantity: parseInt(row['Số lượng']) || 0,
-        unit: row['Đơn vị'] || 'cái'
+        name: name.trim(),
+        description,
+        price: parseFloat(price),
+        sale_price: salePrice ? parseFloat(salePrice) : null,
+        image_url: imageUrl,
+        category_name: categoryName, // Lưu tạm để map sau khi tạo category
+        stock_quantity: parseInt(stockQuantity) || 0,
+        unit: unit || 'cái'
       });
     }
+
+    // Tạo các category mới nếu có
+    if (newCategories.size > 0) {
+      const categoriesToInsert = Array.from(newCategories).map(name => ({
+        name: name.charAt(0).toUpperCase() + name.slice(1), // Viết hoa chữ cái đầu
+        description: `Danh mục ${name}`,
+        is_active: true
+      }));
+
+      const { data: insertedCategories, error: catError } = await supabase
+        .from('categories')
+        .insert(categoriesToInsert)
+        .select();
+
+      if (!catError && insertedCategories) {
+        insertedCategories.forEach(cat => {
+          categoryMap[cat.name.toLowerCase()] = cat.id;
+        });
+      }
+    }
+
+    // Map category_id cho tất cả sản phẩm
+    products.forEach(p => {
+      p.category_id = p.category_name ? categoryMap[p.category_name] : null;
+      delete p.category_name; // Xóa trường tạm
+    });
 
     if (products.length === 0) {
       return res.status(400).json({ error: 'Không có sản phẩm hợp lệ để import', details: errors });
     }
 
-    // Insert products
-    const { data: insertedProducts, error } = await supabase
+    // Lấy danh sách sản phẩm hiện có để kiểm tra trùng
+    const productNames = products.map(p => p.name);
+    const { data: existingProducts } = await supabase
       .from('products')
-      .insert(products)
-      .select();
+      .select('id, name, price, image_url')
+      .in('name', productNames);
 
-    if (error) throw error;
+    const existingMap = {};
+    if (existingProducts) {
+      existingProducts.forEach(p => {
+        existingMap[p.name.toLowerCase()] = p;
+      });
+    }
+
+    const toInsert = [];
+    const toUpdate = [];
+
+    for (const product of products) {
+      const existing = existingMap[product.name.toLowerCase()];
+      
+      if (existing) {
+        // Sản phẩm đã tồn tại - kiểm tra cần update không
+        const needUpdate = 
+          existing.price !== product.price || 
+          existing.image_url !== product.image_url;
+        
+        if (needUpdate) {
+          toUpdate.push({
+            id: existing.id,
+            price: product.price,
+            sale_price: product.sale_price,
+            image_url: product.image_url,
+            stock_quantity: product.stock_quantity,
+            description: product.description,
+            category_id: product.category_id,
+            unit: product.unit
+          });
+        }
+      } else {
+        // Sản phẩm mới - insert
+        toInsert.push(product);
+      }
+    }
+
+    let insertedCount = 0;
+    let updatedCount = 0;
+
+    // Insert sản phẩm mới
+    if (toInsert.length > 0) {
+      const { data: insertedProducts, error: insertError } = await supabase
+        .from('products')
+        .insert(toInsert)
+        .select();
+      
+      if (insertError) throw insertError;
+      insertedCount = insertedProducts?.length || 0;
+    }
+
+    // Update sản phẩm đã có
+    for (const product of toUpdate) {
+      const { id, ...updateData } = product;
+      const { error: updateError } = await supabase
+        .from('products')
+        .update(updateData)
+        .eq('id', id);
+      
+      if (updateError) {
+        errors.push(`Lỗi cập nhật sản phẩm ID ${id}: ${updateError.message}`);
+      } else {
+        updatedCount++;
+      }
+    }
 
     res.json({
-      message: `Đã import ${insertedProducts.length} sản phẩm`,
-      imported: insertedProducts.length,
+      message: `Đã import ${insertedCount} sản phẩm mới, cập nhật ${updatedCount} sản phẩm`,
+      inserted: insertedCount,
+      updated: updatedCount,
+      skipped: products.length - insertedCount - updatedCount,
       errors: errors.length > 0 ? errors : undefined
     });
   } catch (error) {
