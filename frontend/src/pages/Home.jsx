@@ -143,9 +143,9 @@ const Home = () => {
               </Link>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {saleProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
+              {saleProducts.slice(0, 10).map((product) => (
+                <ProductCard key={product.id} product={product} compact />
               ))}
             </div>
           </div>
@@ -166,9 +166,9 @@ const Home = () => {
               </Link>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {bestsellerProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
+              {bestsellerProducts.slice(0, 10).map((product) => (
+                <ProductCard key={product.id} product={product} compact />
               ))}
             </div>
           </div>
@@ -189,9 +189,9 @@ const Home = () => {
               </Link>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {newProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
+              {newProducts.slice(0, 10).map((product) => (
+                <ProductCard key={product.id} product={product} compact />
               ))}
             </div>
           </div>

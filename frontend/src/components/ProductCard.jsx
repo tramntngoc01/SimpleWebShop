@@ -3,7 +3,7 @@ import { ShoppingCart } from 'lucide-react';
 import { formatCurrency } from '../utils/helpers';
 import { useCart } from '../contexts/CartContext';
 
-const ProductCard = ({ product }) => {
+const ProductCard = ({ product, compact = false }) => {
   const { addToCart } = useCart();
   const hasDiscount = product.sale_price && product.sale_price < product.price;
   const displayPrice = hasDiscount ? product.sale_price : product.price;
@@ -30,32 +30,32 @@ const ProductCard = ({ product }) => {
           loading="lazy"
         />
         {hasDiscount && (
-          <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+          <span className={`absolute top-1 left-1 bg-red-500 text-white px-1.5 py-0.5 rounded ${compact ? 'text-[10px]' : 'text-xs'}`}>
             -{discountPercent}%
           </span>
         )}
         {product.stock_quantity === 0 && (
           <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <span className="text-white font-bold">Hết hàng</span>
+            <span className={`text-white font-bold ${compact ? 'text-xs' : 'text-sm'}`}>Hết hàng</span>
           </div>
         )}
       </div>
 
-      <div className="p-3 md:p-4">
-        <p className="text-xs text-gray-500 mb-1 truncate">
+      <div className={compact ? 'p-2' : 'p-3 md:p-4'}>
+        <p className={`text-gray-500 mb-0.5 truncate ${compact ? 'text-[10px]' : 'text-xs'}`}>
           {product.categories?.name || 'Chưa phân loại'}
         </p>
-        <h3 className="font-medium text-gray-800 mb-2 line-clamp-2 text-sm md:text-base min-h-[2.5rem] md:min-h-[3rem]">
+        <h3 className={`font-medium text-gray-800 mb-1.5 line-clamp-2 ${compact ? 'text-xs min-h-[2rem]' : 'text-sm md:text-base min-h-[2.5rem] md:min-h-[3rem]'}`}>
           {product.name}
         </h3>
         
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-1">
           <div className="min-w-0">
-            <p className="text-primary-600 font-bold text-sm md:text-base truncate">
+            <p className={`text-primary-600 font-bold truncate ${compact ? 'text-xs' : 'text-sm md:text-base'}`}>
               {formatCurrency(displayPrice)}
             </p>
             {hasDiscount && (
-              <p className="text-gray-400 text-xs line-through truncate">
+              <p className={`text-gray-400 line-through truncate ${compact ? 'text-[10px]' : 'text-xs'}`}>
                 {formatCurrency(product.price)}
               </p>
             )}
@@ -64,9 +64,9 @@ const ProductCard = ({ product }) => {
           {product.stock_quantity > 0 && (
             <button
               onClick={handleAddToCart}
-              className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shrink-0"
+              className={`bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shrink-0 ${compact ? 'p-1.5' : 'p-2'}`}
             >
-              <ShoppingCart size={18} />
+              <ShoppingCart size={compact ? 14 : 18} />
             </button>
           )}
         </div>
