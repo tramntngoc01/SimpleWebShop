@@ -175,7 +175,9 @@ router.delete('/categories/:id', authMiddleware, adminMiddleware, async (req, re
 router.get('/products', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { page = 1, limit = 10, search, category } = req.query;
-    const offset = (page - 1) * limit;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const offset = (pageNum - 1) * limitNum;
 
     let query = supabase
       .from('products')
@@ -191,17 +193,17 @@ router.get('/products', authMiddleware, adminMiddleware, async (req, res) => {
 
     const { data: products, error, count } = await query
       .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .range(offset, offset + limitNum - 1);
 
     if (error) throw error;
 
     res.json({
       products,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: pageNum,
+        limit: limitNum,
         total: count,
-        totalPages: Math.ceil(count / limit)
+        totalPages: Math.ceil(count / limitNum)
       }
     });
   } catch (error) {
