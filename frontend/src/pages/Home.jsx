@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, TrendingDown } from 'lucide-react';
+import { ArrowRight, TrendingDown, Sparkles, Flame } from 'lucide-react';
 import api from '../utils/api';
 import ProductCard from '../components/ProductCard';
 import Loading from '../components/Loading';
@@ -12,21 +12,29 @@ const CACHE_TTL = 60 * 1000;
 const Home = () => {
   const [categories, setCategories] = useState([]);
   const [saleProducts, setSaleProducts] = useState([]);
+  const [newProducts, setNewProducts] = useState([]);
+  const [bestsellerProducts, setBestsellerProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
-      // Check cache first
+      const now = Date.now();
+      
+      // Check cache
       const categoriesCached = cache.get('categories');
       const saleCached = cache.get('saleProducts');
-      const now = Date.now();
+      const newCached = cache.get('newProducts');
+      const bestCached = cache.get('bestsellerProducts');
 
       // Use cached data if available
-      if (categoriesCached && saleCached && 
-          now - categoriesCached.timestamp < CACHE_TTL &&
-          now - saleCached.timestamp < CACHE_TTL) {
+      const allCached = categoriesCached && saleCached && newCached && bestCached &&
+          now - categoriesCached.timestamp < CACHE_TTL;
+
+      if (allCached) {
         setCategories(categoriesCached.data);
         setSaleProducts(saleCached.data);
+        setNewProducts(newCached.data);
+        setBestsellerProducts(bestCached.data);
         setLoading(false);
         return;
       }
@@ -34,19 +42,27 @@ const Home = () => {
       // Show stale data immediately while fetching
       if (categoriesCached) setCategories(categoriesCached.data);
       if (saleCached) setSaleProducts(saleCached.data);
+      if (newCached) setNewProducts(newCached.data);
+      if (bestCached) setBestsellerProducts(bestCached.data);
       if (categoriesCached || saleCached) setLoading(false);
 
       try {
-        const [categoriesRes, saleRes] = await Promise.all([
+        const [categoriesRes, saleRes, newRes, bestRes] = await Promise.all([
           api.get('/categories'),
-          api.get('/products/featured/sale')
+          api.get('/products/featured/sale'),
+          api.get('/products/featured/new'),
+          api.get('/products/featured/bestseller')
         ]);
         
         cache.set('categories', { data: categoriesRes.data, timestamp: now });
         cache.set('saleProducts', { data: saleRes.data, timestamp: now });
+        cache.set('newProducts', { data: newRes.data, timestamp: now });
+        cache.set('bestsellerProducts', { data: bestRes.data, timestamp: now });
         
         setCategories(categoriesRes.data);
         setSaleProducts(saleRes.data);
+        setNewProducts(newRes.data);
+        setBestsellerProducts(bestRes.data);
       } catch (error) {
         console.error('Failed to fetch data:', error);
       } finally {
@@ -127,8 +143,54 @@ const Home = () => {
               </Link>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
               {saleProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Bestseller Products Section */}
+      {bestsellerProducts.length > 0 && (
+        <section className="py-12 bg-orange-50">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center">
+                <Flame className="text-orange-500 mr-2" size={28} />
+                <h2 className="text-2xl font-bold text-gray-800">Sản phẩm bán chạy</h2>
+              </div>
+              <Link to="/products" className="text-primary-600 hover:underline flex items-center">
+                Xem tất cả <ArrowRight size={16} className="ml-1" />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              {bestsellerProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* New Products Section */}
+      {newProducts.length > 0 && (
+        <section className="py-12">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center">
+                <Sparkles className="text-blue-500 mr-2" size={28} />
+                <h2 className="text-2xl font-bold text-gray-800">Sản phẩm mới</h2>
+              </div>
+              <Link to="/products?sortBy=created_at&sortOrder=desc" className="text-primary-600 hover:underline flex items-center">
+                Xem tất cả <ArrowRight size={16} className="ml-1" />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              {newProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>

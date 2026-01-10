@@ -22,6 +22,59 @@ const upload = multer({
   }
 });
 
+// Cấu hình multer cho upload hình ảnh
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Chỉ chấp nhận file hình ảnh'));
+    }
+  }
+});
+
+// Upload hình ảnh sản phẩm
+router.post('/upload/image', authMiddleware, adminMiddleware, imageUpload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Vui lòng chọn file hình ảnh' });
+    }
+
+    const file = req.file;
+    const fileExt = file.originalname.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const filePath = `products/${fileName}`;
+
+    // Upload to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from('images')
+      .upload(filePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false
+      });
+
+    if (error) {
+      console.error('Upload error:', error);
+      throw error;
+    }
+
+    // Lấy public URL
+    const { data: urlData } = supabase.storage
+      .from('images')
+      .getPublicUrl(filePath);
+
+    res.json({ 
+      message: 'Upload thành công',
+      url: urlData.publicUrl 
+    });
+  } catch (error) {
+    console.error('Upload image error:', error);
+    res.status(500).json({ error: 'Đã xảy ra lỗi khi upload hình ảnh: ' + error.message });
+  }
+});
+
 // ==================== QUẢN LÝ USERS ====================
 
 // Lấy danh sách users

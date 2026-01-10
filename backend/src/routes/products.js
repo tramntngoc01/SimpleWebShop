@@ -218,4 +218,107 @@ router.get('/featured/sale', async (req, res) => {
   }
 });
 
+// Lấy sản phẩm mới nhất
+router.get('/featured/new', async (req, res) => {
+  try {
+    const cacheKey = 'products:featured:new';
+    const cachedData = getCache(cacheKey);
+    if (cachedData) {
+      res.set('X-Cache', 'HIT');
+      res.set('Cache-Control', 'public, max-age=60');
+      return res.json(cachedData);
+    }
+
+    const { data: products, error } = await supabase
+      .from('products')
+      .select('id, name, price, sale_price, image_url, stock_quantity, unit, category_id, categories(name)')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(8);
+
+    if (error) throw error;
+
+    setCache(cacheKey, products);
+    res.set('X-Cache', 'MISS');
+    res.set('Cache-Control', 'public, max-age=60');
+    res.json(products);
+  } catch (error) {
+    console.error('Get new products error:', error);
+    res.status(500).json({ error: 'Đã xảy ra lỗi' });
+  }
+});
+
+// Lấy sản phẩm bán chạy (dựa trên số lượng order)
+router.get('/featured/bestseller', async (req, res) => {
+  try {
+    const cacheKey = 'products:featured:bestseller';
+    const cachedData = getCache(cacheKey);
+    if (cachedData) {
+      res.set('X-Cache', 'HIT');
+      res.set('Cache-Control', 'public, max-age=300');
+      return res.json(cachedData);
+    }
+
+    // Lấy sản phẩm được order nhiều nhất
+    const { data: bestSellerIds, error: orderError } = await supabase
+      .from('order_items')
+      .select('product_id, quantity')
+      .order('quantity', { ascending: false });
+
+    if (orderError) throw orderError;
+
+    // Tính tổng số lượng bán cho mỗi sản phẩm
+    const productSales = {};
+    bestSellerIds?.forEach(item => {
+      if (item.product_id) {
+        productSales[item.product_id] = (productSales[item.product_id] || 0) + item.quantity;
+      }
+    });
+
+    // Sắp xếp theo số lượng bán
+    const sortedProductIds = Object.entries(productSales)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([id]) => id);
+
+    if (sortedProductIds.length === 0) {
+      // Nếu chưa có order, trả về sản phẩm mới nhất
+      const { data: newProducts, error } = await supabase
+        .from('products')
+        .select('id, name, price, sale_price, image_url, stock_quantity, unit, category_id, categories(name)')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(8);
+
+      if (error) throw error;
+      setCache(cacheKey, newProducts);
+      res.set('X-Cache', 'MISS');
+      res.set('Cache-Control', 'public, max-age=300');
+      return res.json(newProducts);
+    }
+
+    // Lấy thông tin sản phẩm
+    const { data: products, error } = await supabase
+      .from('products')
+      .select('id, name, price, sale_price, image_url, stock_quantity, unit, category_id, categories(name)')
+      .eq('is_active', true)
+      .in('id', sortedProductIds);
+
+    if (error) throw error;
+
+    // Sắp xếp lại theo thứ tự bán chạy
+    const sortedProducts = sortedProductIds
+      .map(id => products.find(p => p.id === id))
+      .filter(Boolean);
+
+    setCache(cacheKey, sortedProducts);
+    res.set('X-Cache', 'MISS');
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json(sortedProducts);
+  } catch (error) {
+    console.error('Get bestseller products error:', error);
+    res.status(500).json({ error: 'Đã xảy ra lỗi' });
+  }
+});
+
 export default router;

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Search, Edit, Trash2, Upload, Download } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Upload, Download, Image } from 'lucide-react';
 import api from '../../utils/api';
 import { formatCurrency } from '../../utils/helpers';
 import Loading from '../../components/Loading';
@@ -14,7 +14,9 @@ const AdminProducts = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const imageInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -453,14 +455,79 @@ const AdminProducts = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Link ảnh</label>
-                <input
-                  type="url"
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                  className="input-field"
-                  placeholder="https://..."
-                />
+                <label className="block text-sm font-medium mb-1">Hình ảnh sản phẩm</label>
+                <div className="space-y-2">
+                  {/* Preview hình */}
+                  {formData.imageUrl && (
+                    <div className="relative w-32 h-32 border rounded-lg overflow-hidden">
+                      <img 
+                        src={formData.imageUrl} 
+                        alt="Preview" 
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = 'https://via.placeholder.com/128?text=Error';
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, imageUrl: '' })}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* Upload button */}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => imageInputRef.current?.click()}
+                      disabled={uploading}
+                      className="btn-secondary flex items-center text-sm"
+                    >
+                      <Image size={16} className="mr-1" />
+                      {uploading ? 'Đang tải...' : 'Upload ảnh'}
+                    </button>
+                    <input
+                      ref={imageInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        
+                        setUploading(true);
+                        try {
+                          const uploadData = new FormData();
+                          uploadData.append('image', file);
+                          const response = await api.post('/admin/upload/image', uploadData, {
+                            headers: { 'Content-Type': 'multipart/form-data' },
+                          });
+                          setFormData({ ...formData, imageUrl: response.data.url });
+                          toast.success('Upload thành công');
+                        } catch (error) {
+                          toast.error(error.response?.data?.error || 'Upload thất bại');
+                        } finally {
+                          setUploading(false);
+                          e.target.value = '';
+                        }
+                      }}
+                    />
+                  </div>
+                  
+                  {/* Hoặc nhập URL */}
+                  <div className="text-xs text-gray-500">Hoặc nhập URL:</div>
+                  <input
+                    type="url"
+                    value={formData.imageUrl}
+                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                    className="input-field text-sm"
+                    placeholder="https://..."
+                  />
+                </div>
               </div>
 
               <div className="flex gap-3 pt-4">
