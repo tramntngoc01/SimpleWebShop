@@ -51,7 +51,9 @@ router.get('/', async (req, res) => {
       sortOrder = 'desc'
     } = req.query;
 
-    const offset = (page - 1) * limit;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const offset = (pageNum - 1) * limitNum;
 
     // Optimize: Select only needed columns instead of *
     let query = supabase
@@ -81,7 +83,7 @@ router.get('/', async (req, res) => {
     query = query.order(sortBy, { ascending: sortOrder === 'asc' });
 
     // Phân trang
-    query = query.range(offset, offset + limit - 1);
+    query = query.range(offset, offset + limitNum - 1);
 
     const { data: products, error, count } = await query;
 
@@ -90,10 +92,10 @@ router.get('/', async (req, res) => {
     const responseData = {
       products,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: pageNum,
+        limit: limitNum,
         total: count,
-        totalPages: Math.ceil(count / limit)
+        totalPages: Math.ceil(count / limitNum)
       }
     };
 
