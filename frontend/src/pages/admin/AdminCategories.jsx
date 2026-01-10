@@ -79,9 +79,10 @@ const AdminCategories = () => {
     try {
       await api.delete(`/admin/categories/${id}`);
       toast.success('Đã xóa danh mục');
-      fetchCategories();
+      // Xóa khỏi state ngay lập tức để UI cập nhật
+      setCategories(prev => prev.filter(cat => cat.id !== id));
     } catch (error) {
-      toast.error('Không thể xóa danh mục');
+      toast.error(error.response?.data?.error || 'Không thể xóa danh mục');
     }
   };
 

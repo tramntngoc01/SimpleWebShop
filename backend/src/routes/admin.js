@@ -155,6 +155,18 @@ router.put('/categories/:id', authMiddleware, adminMiddleware, async (req, res) 
 // Xóa danh mục
 router.delete('/categories/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
+    // Kiểm tra xem danh mục có sản phẩm không
+    const { count } = await supabase
+      .from('products')
+      .select('id', { count: 'exact', head: true })
+      .eq('category_id', req.params.id);
+
+    if (count > 0) {
+      return res.status(400).json({ 
+        error: `Không thể xóa danh mục này vì có ${count} sản phẩm đang sử dụng. Hãy chuyển sản phẩm sang danh mục khác trước.` 
+      });
+    }
+
     const { error } = await supabase
       .from('categories')
       .delete()
@@ -165,7 +177,7 @@ router.delete('/categories/:id', authMiddleware, adminMiddleware, async (req, re
     res.json({ message: 'Đã xóa danh mục' });
   } catch (error) {
     console.error('Delete category error:', error);
-    res.status(500).json({ error: 'Đã xảy ra lỗi' });
+    res.status(500).json({ error: 'Đã xảy ra lỗi khi xóa danh mục' });
   }
 });
 
