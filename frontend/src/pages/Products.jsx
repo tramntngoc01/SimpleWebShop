@@ -177,11 +177,11 @@ const Products = () => {
         </select>
       </div>
 
-      <div className="flex gap-8">
+      <div className="flex flex-col md:flex-row gap-8">
         {/* Filters Sidebar */}
         <aside className={`
           ${showFilters ? 'fixed inset-0 z-50 bg-white p-4 overflow-auto' : 'hidden'}
-          md:block md:static md:w-64 md:shrink-0
+          md:block md:static md:w-56 md:shrink-0
         `}>
           <div className="flex items-center justify-between md:hidden mb-4">
             <h2 className="font-bold text-lg">Bộ lọc</h2>
@@ -194,27 +194,27 @@ const Products = () => {
             {/* Category Filter */}
             <div>
               <h3 className="font-medium mb-3">Danh mục</h3>
-              <div className="space-y-2">
-                <label className="flex items-center">
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                <label className="flex items-center cursor-pointer hover:text-primary-600">
                   <input
                     type="radio"
                     name="category"
                     checked={!filters.category}
                     onChange={() => handleFilterChange('category', '')}
-                    className="mr-2"
+                    className="mr-2 accent-primary-600"
                   />
                   Tất cả
                 </label>
                 {categories.map((cat) => (
-                  <label key={cat.id} className="flex items-center">
+                  <label key={cat.id} className="flex items-center cursor-pointer hover:text-primary-600">
                     <input
                       type="radio"
                       name="category"
                       checked={filters.category === cat.id}
                       onChange={() => handleFilterChange('category', cat.id)}
-                      className="mr-2"
+                      className="mr-2 accent-primary-600"
                     />
-                    {cat.name}
+                    <span className="truncate">{cat.name}</span>
                   </label>
                 ))}
               </div>
@@ -260,7 +260,7 @@ const Products = () => {
         </aside>
 
         {/* Products Grid */}
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           {loading ? (
             <Loading />
           ) : products.length === 0 ? (
@@ -273,7 +273,7 @@ const Products = () => {
                 Hiển thị {products.length} / {pagination.total} sản phẩm
               </p>
 
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
                 {products.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
@@ -281,20 +281,70 @@ const Products = () => {
 
               {/* Pagination */}
               {pagination.totalPages > 1 && (
-                <div className="flex justify-center mt-8 gap-2">
-                  {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => setFilters(prev => ({ ...prev, page }))}
-                      className={`px-4 py-2 rounded-lg ${
-                        page === pagination.page
-                          ? 'bg-primary-600 text-white'
-                          : 'bg-gray-200 hover:bg-gray-300'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
+                <div className="flex justify-center items-center mt-8 gap-1 flex-wrap">
+                  {/* Nút Previous */}
+                  <button
+                    onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))}
+                    disabled={pagination.page === 1}
+                    className="px-3 py-2 rounded-lg bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300"
+                  >
+                    ‹
+                  </button>
+                  
+                  {/* Hiển thị tối đa 5 trang */}
+                  {(() => {
+                    const currentPage = pagination.page;
+                    const totalPages = pagination.totalPages;
+                    let startPage = Math.max(1, currentPage - 2);
+                    let endPage = Math.min(totalPages, startPage + 4);
+                    
+                    if (endPage - startPage < 4) {
+                      startPage = Math.max(1, endPage - 4);
+                    }
+                    
+                    const pages = [];
+                    
+                    if (startPage > 1) {
+                      pages.push(
+                        <button key={1} onClick={() => setFilters(prev => ({ ...prev, page: 1 }))} className="px-3 py-2 rounded-lg bg-gray-200 hover:bg-gray-300">1</button>
+                      );
+                      if (startPage > 2) {
+                        pages.push(<span key="start-ellipsis" className="px-2">...</span>);
+                      }
+                    }
+                    
+                    for (let i = startPage; i <= endPage; i++) {
+                      pages.push(
+                        <button
+                          key={i}
+                          onClick={() => setFilters(prev => ({ ...prev, page: i }))}
+                          className={`px-3 py-2 rounded-lg ${i === currentPage ? 'bg-primary-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+                        >
+                          {i}
+                        </button>
+                      );
+                    }
+                    
+                    if (endPage < totalPages) {
+                      if (endPage < totalPages - 1) {
+                        pages.push(<span key="end-ellipsis" className="px-2">...</span>);
+                      }
+                      pages.push(
+                        <button key={totalPages} onClick={() => setFilters(prev => ({ ...prev, page: totalPages }))} className="px-3 py-2 rounded-lg bg-gray-200 hover:bg-gray-300">{totalPages}</button>
+                      );
+                    }
+                    
+                    return pages;
+                  })()}
+                  
+                  {/* Nút Next */}
+                  <button
+                    onClick={() => setFilters(prev => ({ ...prev, page: prev.page + 1 }))}
+                    disabled={pagination.page === pagination.totalPages}
+                    className="px-3 py-2 rounded-lg bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300"
+                  >
+                    ›
+                  </button>
                 </div>
               )}
             </>

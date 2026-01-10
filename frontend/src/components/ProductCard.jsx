@@ -18,11 +18,16 @@ const ProductCard = ({ product }) => {
 
   return (
     <Link to={`/products/${product.id}`} className="card group">
-      <div className="relative aspect-square overflow-hidden">
+      <div className="relative aspect-square overflow-hidden bg-gray-100">
         <img
           src={product.image_url || 'https://via.placeholder.com/300?text=No+Image'}
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.src = 'https://via.placeholder.com/300?text=No+Image';
+          }}
+          loading="lazy"
         />
         {hasDiscount && (
           <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
@@ -36,21 +41,21 @@ const ProductCard = ({ product }) => {
         )}
       </div>
 
-      <div className="p-4">
-        <p className="text-xs text-gray-500 mb-1">
+      <div className="p-3 md:p-4">
+        <p className="text-xs text-gray-500 mb-1 truncate">
           {product.categories?.name || 'Chưa phân loại'}
         </p>
-        <h3 className="font-medium text-gray-800 mb-2 line-clamp-2 h-12">
+        <h3 className="font-medium text-gray-800 mb-2 line-clamp-2 text-sm md:text-base min-h-[2.5rem] md:min-h-[3rem]">
           {product.name}
         </h3>
         
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-primary-600 font-bold">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-primary-600 font-bold text-sm md:text-base truncate">
               {formatCurrency(displayPrice)}
             </p>
             {hasDiscount && (
-              <p className="text-gray-400 text-sm line-through">
+              <p className="text-gray-400 text-xs line-through truncate">
                 {formatCurrency(product.price)}
               </p>
             )}
@@ -59,9 +64,9 @@ const ProductCard = ({ product }) => {
           {product.stock_quantity > 0 && (
             <button
               onClick={handleAddToCart}
-              className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+              className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shrink-0"
             >
-              <ShoppingCart size={20} />
+              <ShoppingCart size={18} />
             </button>
           )}
         </div>
