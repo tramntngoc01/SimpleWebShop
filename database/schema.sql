@@ -39,6 +39,7 @@ CREATE TABLE categories (
 -- =============================================
 CREATE TABLE products (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    sku VARCHAR(100) UNIQUE,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     price DECIMAL(12, 2) NOT NULL,

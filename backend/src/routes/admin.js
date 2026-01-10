@@ -327,10 +327,11 @@ router.post('/products/import', authMiddleware, adminMiddleware, upload.single('
       const row = data[i];
       const rowNum = i + 2; // +2 vì header là hàng 1
 
-      let name, description, price, salePrice, categoryName, stockQuantity, unit, imageUrl;
+      let sku, name, description, price, salePrice, categoryName, stockQuantity, unit, imageUrl;
 
       if (isKiotVietFormat) {
         // Format từ KiotViet
+        sku = row['Mã hàng'] ? String(row['Mã hàng']).trim() : null;
         name = row['Tên hàng'];
         description = row['Mô tả'] || null;
         price = row['Giá bán'];
@@ -346,6 +347,7 @@ router.post('/products/import', authMiddleware, adminMiddleware, upload.single('
         }
       } else {
         // Format template cũ
+        sku = row['Mã hàng'] ? String(row['Mã hàng']).trim() : null;
         name = row['Tên sản phẩm'];
         description = row['Mô tả'] || null;
         price = row['Giá'];
@@ -369,6 +371,7 @@ router.post('/products/import', authMiddleware, adminMiddleware, upload.single('
       }
 
       products.push({
+        sku,
         name: name.trim(),
         description,
         price: parseFloat(price),
@@ -410,42 +413,51 @@ router.post('/products/import', authMiddleware, adminMiddleware, upload.single('
       return res.status(400).json({ error: 'Không có sản phẩm hợp lệ để import', details: errors });
     }
 
-    // Lấy danh sách sản phẩm hiện có để kiểm tra trùng
-    const productNames = products.map(p => p.name);
-    const { data: existingProducts } = await supabase
-      .from('products')
-      .select('id, name, price, image_url')
-      .in('name', productNames);
+    // Lấy danh sách sản phẩm hiện có để kiểm tra trùng theo SKU
+    const productSkus = products.filter(p => p.sku).map(p => p.sku);
+    let existingProducts = [];
+    
+    if (productSkus.length > 0) {
+      const { data } = await supabase
+        .from('products')
+        .select('id, sku, name, price, image_url')
+        .in('sku', productSkus);
+      existingProducts = data || [];
+    }
 
     const existingMap = {};
-    if (existingProducts) {
-      existingProducts.forEach(p => {
-        existingMap[p.name.toLowerCase()] = p;
-      });
-    }
+    existingProducts.forEach(p => {
+      if (p.sku) {
+        existingMap[p.sku] = p;
+      }
+    });
 
     const toInsert = [];
     const toUpdate = [];
 
     for (const product of products) {
-      const existing = existingMap[product.name.toLowerCase()];
+      // Check dựa trên SKU (mã hàng)
+      const existing = product.sku ? existingMap[product.sku] : null;
       
       if (existing) {
         // Sản phẩm đã tồn tại - kiểm tra cần update không
         const needUpdate = 
           existing.price !== product.price || 
-          existing.image_url !== product.image_url;
+          existing.image_url !== product.image_url ||
+          existing.name !== product.name;
         
         if (needUpdate) {
           toUpdate.push({
             id: existing.id,
+            name: product.name,
             price: product.price,
             sale_price: product.sale_price,
             image_url: product.image_url,
             stock_quantity: product.stock_quantity,
             description: product.description,
             category_id: product.category_id,
-            unit: product.unit
+            unit: product.unit,
+            updated_at: new Date().toISOString()
           });
         }
       } else {
