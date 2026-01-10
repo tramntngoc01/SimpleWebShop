@@ -155,29 +155,58 @@ router.put('/categories/:id', authMiddleware, adminMiddleware, async (req, res) 
 // Xóa danh mục
 router.delete('/categories/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
+    const categoryId = req.params.id;
+    
+    // Kiểm tra danh mục có tồn tại không
+    const { data: existingCategory, error: checkError } = await supabase
+      .from('categories')
+      .select('id, name')
+      .eq('id', categoryId)
+      .single();
+
+    if (checkError || !existingCategory) {
+      return res.status(404).json({ error: 'Không tìm thấy danh mục' });
+    }
+
     // Kiểm tra xem danh mục có sản phẩm không
-    const { count } = await supabase
+    const { count, error: countError } = await supabase
       .from('products')
       .select('id', { count: 'exact', head: true })
-      .eq('category_id', req.params.id);
+      .eq('category_id', categoryId);
 
-    if (count > 0) {
+    if (countError) {
+      console.error('Count products error:', countError);
+    }
+
+    if (count && count > 0) {
       return res.status(400).json({ 
-        error: `Không thể xóa danh mục này vì có ${count} sản phẩm đang sử dụng. Hãy chuyển sản phẩm sang danh mục khác trước.` 
+        error: `Không thể xóa danh mục "${existingCategory.name}" vì có ${count} sản phẩm đang sử dụng. Hãy chuyển sản phẩm sang danh mục khác trước.` 
       });
     }
 
-    const { error } = await supabase
+    // Thực hiện xóa
+    const { data: deletedData, error: deleteError } = await supabase
       .from('categories')
       .delete()
-      .eq('id', req.params.id);
+      .eq('id', categoryId)
+      .select();
 
-    if (error) throw error;
+    if (deleteError) {
+      console.error('Delete category error:', deleteError);
+      throw deleteError;
+    }
 
-    res.json({ message: 'Đã xóa danh mục' });
+    // Verify đã xóa thành công
+    if (!deletedData || deletedData.length === 0) {
+      console.error('Delete returned no data - category may not have been deleted');
+      return res.status(500).json({ error: 'Không thể xóa danh mục. Vui lòng thử lại.' });
+    }
+
+    console.log(`Category deleted successfully: ${existingCategory.name} (${categoryId})`);
+    res.json({ message: `Đã xóa danh mục "${existingCategory.name}"`, deleted: deletedData[0] });
   } catch (error) {
     console.error('Delete category error:', error);
-    res.status(500).json({ error: 'Đã xảy ra lỗi khi xóa danh mục' });
+    res.status(500).json({ error: 'Đã xảy ra lỗi khi xóa danh mục: ' + error.message });
   }
 });
 
